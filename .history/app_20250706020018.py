@@ -95,7 +95,7 @@ def delete_order(name):
     if name in session['orders']:
         drink, temp, _ = session['orders'][name]
         drink_counts = dict(session.get('drink_counts', {}))
-        key = f"{drink}|{temp}"
+        key = (drink, temp)
         
         if key in drink_counts:
             drink_counts[key] -= 1
@@ -123,17 +123,9 @@ def final_order():
     # drink_counts를 안전하게 가져오기
     drink_counts = session.get('drink_counts', {})
     
-    # 주문 요약 생성 (문자열 키 파싱)
-    hot_orders = {}
-    ice_orders = {}
-    
-    for key, count in drink_counts.items():
-        if '|' in key:
-            drink, temp = key.split('|', 1)
-            if temp == "HOT":
-                hot_orders[drink] = count
-            elif temp == "ICE":
-                ice_orders[drink] = count
+    # 주문 요약 생성
+    hot_orders = {k[0]: v for k, v in drink_counts.items() if k[1] == "HOT"}
+    ice_orders = {k[0]: v for k, v in drink_counts.items() if k[1] == "ICE"}
     
     total_drinks = sum(drink_counts.values())
     total_people = len(session['orders'])
