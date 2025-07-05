@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAMMOTH COFFEE KIOSK</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --mammoth-orange: #FF7A00;
+            --mammoth-light: #FFE0B2;
+            --text-dark: #333333;
+            --text-light: #666666;
+            --bg-light: #FFFFFF;
+            --border-color: #EEEEEE;
+        }
+        
+        body {
+            background-color: var(--bg-light);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--mammoth-orange), #FF9500);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+        
+        .card-header {
+            background-color: var(--bg-light);
+            border-bottom: 1px solid var(--border-color);
+            font-weight: bold;
+            color: var(--text-dark);
+        }
+        
+        .btn-primary {
+            background-color: var(--mammoth-orange);
+            border-color: var(--mammoth-orange);
+        }
+        
+        .btn-primary:hover {
+            background-color: #E66A00;
+            border-color: #E66A00;
+        }
+        
+        .btn-outline-primary {
+            color: var(--mammoth-orange);
+            border-color: var(--mammoth-orange);
+        }
+        
+        .btn-outline-primary:hover {
+            background-color: var(--mammoth-orange);
+            border-color: var(--mammoth-orange);
+        }
+        
+        .menu-item {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .menu-item:hover {
+            box-shadow: 0 4px 12px rgba(255, 122, 0, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .menu-item.selected {
+            border-color: var(--mammoth-orange);
+            background-color: var(--mammoth-light);
+        }
+        
+        .temperature-toggle {
+            display: flex;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+        
+        .temp-btn {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .temp-btn.active {
+            border-color: var(--mammoth-orange);
+            background-color: var(--mammoth-orange);
+            color: white;
+        }
+        
+        .order-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .order-item:last-child {
+            border-bottom: none;
+        }
+        
+        .flash-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            min-width: 300px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 1rem;
+            }
+            
+            .header {
+                padding: 1.5rem 0;
+            }
+            
+            .menu-item {
+                padding: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash-message alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <h1><i class="fas fa-coffee"></i> MAMMOTH COFFEE</h1>
+            <p class="mb-0">오늘의 커피, 매머드에서 주문하세요!</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <!-- 주문 입력 섹션 -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-edit"></i> 주문 입력
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('add_order') }}">
+                            <!-- 이름 입력 -->
+                            <div class="mb-3">
+                                <label for="name" class="form-label">주문자 이름</label>
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+
+                            <!-- 카테고리 선택 -->
+                            <div class="mb-3">
+                                <label for="category" class="form-label">음료 카테고리</label>
+                                <select class="form-select" id="category" onchange="loadMenu()">
+                                    <option value="">카테고리를 선택하세요</option>
+                                    {% for category in menu.keys() %}
+                                        <option value="{{ category }}">{{ category }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- 메뉴 선택 -->
+                            <div class="mb-3">
+                                <label class="form-label">음료 선택</label>
+                                <div id="menuContainer" class="row">
+                                    <div class="col-12 text-center text-muted">
+                                        카테고리를 먼저 선택해주세요
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 온도 선택 -->
+                            <div class="mb-3">
+                                <label class="form-label">온도</label>
+                                <div class="temperature-toggle">
+                                    <div class="temp-btn active" data-temp="ICE">
+                                        <i class="fas fa-snowflake"></i> ICE
+                                    </div>
+                                    <div class="temp-btn" data-temp="HOT">
+                                        <i class="fas fa-fire"></i> HOT
+                                    </div>
+                                </div>
+                                <input type="hidden" id="temperature" name="temperature" value="ICE">
+                            </div>
+
+                            <!-- 추가 요청사항 -->
+                            <div class="mb-3">
+                                <label for="request_note" class="form-label">추가 요청사항</label>
+                                <textarea class="form-control" id="request_note" name="request_note" rows="2" placeholder="예: 시럽 적게, 얼음 적게"></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-plus"></i> 주문 추가
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 주문 현황 섹션 -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-list"></i> 현재 주문 현황</span>
+                        <div>
+                            <a href="{{ url_for('final_order') }}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-print"></i> 최종 주문서
+                            </a>
+                            <a href="{{ url_for('reset_orders') }}" class="btn btn-sm btn-outline-danger" 
+                               onclick="return confirm('모든 주문을 초기화하시겠습니까?')">
+                                <i class="fas fa-trash"></i> 초기화
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="order-list">
+                            {% if orders %}
+                                {% for name, (drink, temp, note) in orders.items() %}
+                                    <div class="order-item">
+                                        <div>
+                                            <strong>{{ name }}</strong><br>
+                                            <small class="text-muted">
+                                                {{ drink }} ({{ temp }})
+                                                {% if note %}
+                                                    <br><em>요청: {{ note }}</em>
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                        <a href="{{ url_for('delete_order', name=name) }}" 
+                                           class="btn btn-sm btn-outline-danger"
+                                           onclick="return confirm('{{ name }}님의 주문을 삭제하시겠습니까?')">
+                                            <i class="fas fa-times"></i>
+                                        </a>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center text-muted py-4">
+                                    <i class="fas fa-coffee fa-3x mb-3"></i>
+                                    <p>아직 주문이 없습니다.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 메뉴 데이터
+        const menuData = {{ menu | tojson }};
+        
+        // 온도 선택
+        document.querySelectorAll('.temp-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.temp-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('temperature').value = this.dataset.temp;
+            });
+        });
+
+        // 메뉴 로드
+        function loadMenu() {
+            const category = document.getElementById('category').value;
+            const container = document.getElementById('menuContainer');
+            
+            if (!category) {
+                container.innerHTML = '<div class="col-12 text-center text-muted">카테고리를 먼저 선택해주세요</div>';
+                return;
+            }
+            
+            const drinks = menuData[category];
+            let html = '';
+            
+            drinks.forEach(drink => {
+                html += `
+                    <div class="col-6 mb-2">
+                        <div class="menu-item" onclick="selectDrink('${drink}')">
+                            <div class="text-center">
+                                <i class="fas fa-coffee fa-2x mb-2 text-muted"></i>
+                                <div class="fw-bold">${drink}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // 음료 선택
+        function selectDrink(drink) {
+            // 기존 선택 해제
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // 새 선택
+            event.target.closest('.menu-item').classList.add('selected');
+            
+            // 숨겨진 입력 필드 생성
+            let hiddenInput = document.getElementById('selected_drink');
+            if (!hiddenInput) {
+                hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.id = 'selected_drink';
+                hiddenInput.name = 'drink';
+                document.querySelector('form').appendChild(hiddenInput);
+            }
+            hiddenInput.value = drink;
+        }
+
+        // Flash 메시지 자동 숨김
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+    </script>
+</body>
+</html> 
