@@ -94,15 +94,9 @@ def add_order():
 def delete_order(name):
     if name in session['orders']:
         drink, temp, _ = session['orders'][name]
-        drink_counts = dict(session.get('drink_counts', {}))
-        key = (drink, temp)
-        
-        if key in drink_counts:
-            drink_counts[key] -= 1
-            if drink_counts[key] == 0:
-                del drink_counts[key]
-        
-        session['drink_counts'] = drink_counts
+        session['drink_counts'][(drink, temp)] -= 1
+        if session['drink_counts'][(drink, temp)] == 0:
+            del session['drink_counts'][(drink, temp)]
         del session['orders'][name]
         flash(f'{name}님의 주문이 삭제되었습니다.', 'success')
     return redirect(url_for('index'))
@@ -110,7 +104,7 @@ def delete_order(name):
 @app.route('/reset_orders')
 def reset_orders():
     session['orders'] = {}
-    session['drink_counts'] = {}
+    session['drink_counts'] = defaultdict(int)
     flash('모든 주문이 초기화되었습니다.', 'success')
     return redirect(url_for('index'))
 
@@ -120,14 +114,11 @@ def final_order():
         flash('주문 내역이 없습니다.', 'error')
         return redirect(url_for('index'))
     
-    # drink_counts를 안전하게 가져오기
-    drink_counts = session.get('drink_counts', {})
-    
     # 주문 요약 생성
-    hot_orders = {k[0]: v for k, v in drink_counts.items() if k[1] == "HOT"}
-    ice_orders = {k[0]: v for k, v in drink_counts.items() if k[1] == "ICE"}
+    hot_orders = {k[0]: v for k, v in session['drink_counts'].items() if k[1] == "HOT"}
+    ice_orders = {k[0]: v for k, v in session['drink_counts'].items() if k[1] == "ICE"}
     
-    total_drinks = sum(drink_counts.values())
+    total_drinks = sum(session['drink_counts'].values())
     total_people = len(session['orders'])
     
     return render_template('final_order.html', 

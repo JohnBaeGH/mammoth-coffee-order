@@ -120,14 +120,11 @@ def final_order():
         flash('주문 내역이 없습니다.', 'error')
         return redirect(url_for('index'))
     
-    # drink_counts를 안전하게 가져오기
-    drink_counts = session.get('drink_counts', {})
-    
     # 주문 요약 생성
-    hot_orders = {k[0]: v for k, v in drink_counts.items() if k[1] == "HOT"}
-    ice_orders = {k[0]: v for k, v in drink_counts.items() if k[1] == "ICE"}
+    hot_orders = {k[0]: v for k, v in session['drink_counts'].items() if k[1] == "HOT"}
+    ice_orders = {k[0]: v for k, v in session['drink_counts'].items() if k[1] == "ICE"}
     
-    total_drinks = sum(drink_counts.values())
+    total_drinks = sum(session['drink_counts'].values())
     total_people = len(session['orders'])
     
     return render_template('final_order.html', 
